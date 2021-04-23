@@ -1,0 +1,993 @@
+%Q2i
+clear
+global ramp restroom walleye salmon panfish Z D1
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+end
+end
+options = optimset('MaxFunEvals',1000000,'MaxIter',500000,'PlotFcns',@optimplotfval,'TolFun',1e-6,'TolX',1e-6);
+x0=[1;0;0;0;0;0];
+[alpha,L1]=fminsearch(@f,x0,options);
+%%%%%%%%%%%%%%%%MLE function
+function L1=f(x)
+global ramp restroom walleye salmon panfish Z D1
+  P=exp(repmat(x(1)*ramp,2404,1)+repmat(x(2)*restroom,2404,1)+repmat(x(3)*walleye,2404,1)+repmat(x(4)*salmon,2404,1)+repmat(x(5)*panfish,2404,1)+x(6)*Z); 
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q2ii
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:);
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+options = optimset('MaxFunEvals',1000000,'MaxIter',500000,'PlotFcns',@optimplotfval,'TolFun',1e-6,'TolX',1e-6);
+x0=[0.0432,-0.1829,1.7362,4.6005,0.3860,-0.1031,0,0,0,0];
+[alpha,L1]=fminsearch(@f,x0,options);
+%%%%%%%%%%%%%%% MLE function
+function L1=f(alpha)
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye
+P=exp(repmat(alpha(1)*ramp,2404,1)+repmat(alpha(2)*restroom,2404,1)+repmat(alpha(3)*walleye,2404,1)+repmat(alpha(4)*salmon,2404,1)+repmat(alpha(5)*panfish,2404,1)+alpha(6)*Z+alpha(7)*kid_panfish+alpha(8)*kid_restroom+alpha(9)*boat_ramp+alpha(10)*boat_walleye); 
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q2iii
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:);
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+
+theta=zeros(size(ramp));
+alpha=[-0.1232;0;0.44265;0;0.460679];
+j=0;
+k=0;
+L2=1000000000000;
+L1=10000000000;
+while abs(L2-L1)>10^(-8)
+        S=exp(repmat(theta,2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye);
+S1=(sum((S./sum(S,2))))/2404;
+error=norm(ones(size(S1)));
+while error>10^(-12)
+    theta1=theta+(log(shares)-log(S1));
+    error=norm(theta1-theta);
+    theta=theta1;
+     S=exp(repmat(theta,2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye);
+S1=(sum((S./sum(S,2))))/2404;
+k=k+1;
+end
+global theta
+theta=theta-mean(theta)*ones(size(ramp));
+
+options = optimset('MaxFunEvals',1000000,'MaxIter',500000,'PlotFcns',@optimplotfval);
+x0=alpha;
+L2=L1;
+[alpha,L1]=fminsearch(@f,x0,options);
+j=j+1;
+end
+X1=[ramp;restroom;walleye;salmon;panfish]';
+X2=[ones(size(ramp))',X1];
+beta=inv(X2'*X2)*X2'*theta';
+%%%%%%%%%%%%%%%%%%BLP+CMLE
+function L1=f(alpha)
+global ramp restroom walleye salmon panfish shares Z D1 kid_panfish kid_restroom boat_ramp boat_walleye theta
+P=exp(repmat(theta,2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye);
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q2iv
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 Sim
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:);
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+alphamx=zeros(10,6);
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+alpha=[alpha;1];
+j=0;
+k=0;
+L2=1000000000000;
+L1=10000000000;
+Sim=randn(2404,1000);
+P1=zeros(1000,100);
+   P2=zeros(2404,100);
+while abs(L2-L1)>10^(-2)
+   beta_sim=abs(alpha(6))*Sim;
+   for a=1:2404
+   P1=exp(repmat(theta,1000,1)+repmat(alpha(1)*Z(a,:),1000,1)+repmat(alpha(2)*kid_panfish(a,:),1000,1)+repmat(alpha(3)*kid_restroom(a,:),1000,1)+repmat(alpha(4)*boat_ramp(a,:),1000,1)+repmat(alpha(5)*boat_walleye(a,:),1000,1)+beta_sim(a,:)'*walleye);
+  P2(a,:)=(sum(P1./sum(P1,2)))/1000;
+   end
+ P=sum(P2)/2404;
+ error=norm(ones(size(P)));
+while error>10^(-8)
+    theta1=theta+(log(shares)-log(P));
+    error=norm(theta1-theta);
+    theta=theta1;
+    for a=1:2404
+        P1=exp(repmat(theta,1000,1)+repmat(alpha(1)*Z(a,:),1000,1)+repmat(alpha(2)*kid_panfish(a,:),1000,1)+repmat(alpha(3)*kid_restroom(a,:),1000,1)+repmat(alpha(4)*boat_ramp(a,:),1000,1)+repmat(alpha(5)*boat_walleye(a,:),1000,1)+beta_sim(a,:)'*walleye);
+  P2(a,:)=sum(P1./sum(P1,2))/1000;
+   end
+P=sum(P2)/2404;
+k=k+1;
+end
+global theta
+theta=theta-mean(theta)*ones(size(ramp));
+
+options = optimset('MaxFunEvals',100000,'MaxIter',50000,'PlotFcns',@optimplotfval);
+x0=alpha;
+L2=L1;
+[alpha,L1]=fminsearch(@f,x0,options);
+j=j+1;
+L3=L2-L1;
+end
+X1=[ramp;restroom;walleye;salmon;panfish]';
+X2=[ones(size(ramp))',X1];
+beta=inv(X2'*X2)*X2'*theta';
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function L1=f(alpha)
+global ramp restroom walleye salmon panfish shares Z D1 kid_panfish kid_restroom boat_ramp boat_walleye theta Sim
+beta_sim=abs(alpha(6))*Sim;
+  for a=1:2404
+ P1=exp(repmat(theta,1000,1)+repmat(alpha(1)*Z(a,:),1000,1)+repmat(alpha(2)*kid_panfish(a,:),1000,1)+repmat(alpha(3)*kid_restroom(a,:),1000,1)+repmat(alpha(4)*boat_ramp(a,:),1000,1)+repmat(alpha(5)*boat_walleye(a,:),1000,1)+beta_sim(a,:)'*walleye);  
+  P2(a,:)=sum(P1./sum(P1,2))/1000;
+   end
+Pdata=log(P2.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q3i(i)
+clear
+global ramp restroom walleye salmon panfish Z D1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+end
+end
+options = optimset('MaxFunEvals',1000000,'MaxIter',500000,'PlotFcns',@optimplotfval,'TolFun',1e-6,'TolX',1e-6);
+x0=[1;0;0;0;0;0;0];
+[alpha,L1]=fminsearch(@f,x0,options);
+%%%%%%%%%%%%%%%%MLE function
+function L1=f(x)
+global ramp restroom walleye salmon panfish Z D1 shares
+for a=1:2404
+for b=1:100
+  P(a,b)=exp(x(1)*ramp(b)+x(2)*restroom(b)+x(3)*walleye(b)+x(4)*salmon(b)+x(5)*panfish(b)+x(6)*Z(a,b)+x(7)*shares(b)); 
+end
+end
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q3i(ii)
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+options = optimset('MaxFunEvals',1000000,'MaxIter',500000,'PlotFcns',@optimplotfval,'TolFun',1e-6,'TolX',1e-6);
+x0=[-0.0078,-0.2250,0.1733,0.2382,0.2307,-0.1044,0,0,0,0,0.6940];
+[alpha,L1]=fminsearch(@f,x0,options);
+%%%%%%%%%%%%%%% MLE function
+function L1=f(alpha)
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye shares
+for a=1:2404
+for b=1:100
+  P(a,b)=exp(alpha(1)*ramp(b)+alpha(2)*restroom(b)+alpha(3)*walleye(b)+alpha(4)*salmon(b)+alpha(5)*panfish(b)+alpha(6)*Z(a,b)+alpha(7)*kid_panfish(a,b)+alpha(8)*kid_restroom(a,b)+alpha(9)*boat_ramp(a,b)+alpha(10)*boat_walleye(a,b)+alpha(11)*shares(b)); 
+end
+end
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q3i(iii)
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+
+theta=zeros(size(ramp));
+alpha=[-0.1232;0;0.44265;0;0.460679];
+j=0;
+k=0;
+L2=1000000000000;
+L1=100000000000;
+while abs(L2-L1)>10^(-8)
+for a=1:2404
+    for b=1:100
+        S(a,b)=exp(theta(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    end
+end
+S1=(sum((S./sum(S,2))))/2404;
+error=norm(ones(size(S1)));
+while error>10^(-12)
+    theta1=theta+(log(shares/100)-log(S1));
+    error=norm(theta1-theta);
+    theta=theta1;
+    for a=1:2404
+    for b=1:100
+        S(a,b)=exp(theta(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    end
+    end
+S1=(sum((S./sum(S,2))))/2404;
+k=k+1;
+end
+global theta
+theta=theta-mean(theta)*ones(size(ramp));
+
+options = optimset('MaxFunEvals',1000,'MaxIter',500,'PlotFcns',@optimplotfval);
+x0=alpha;
+L2=L1;
+[alpha,L1]=fminsearch(@f,x0,options);
+j=j+1;
+end
+X1=[ramp;restroom;walleye;salmon;panfish;shares]';
+X2=[ones(size(ramp))',X1];
+beta=inv(X2'*X2)*X2'*theta';
+%%%%%%%%%%%%%%%%%%BLP+CMLE
+function L1=f(alpha)
+global ramp restroom walleye salmon panfish shares Z D1 kid_panfish kid_restroom boat_ramp boat_walleye theta
+for a=1:2404
+for b=1:100
+  P(a,b)=exp(theta(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b)); 
+end
+end
+P1=P./sum(P,2);
+Pdata=log(P1.^D1);
+L1=-sum(Pdata,"all");
+end
+
+%Q3ii
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+load('PS2Q3i3beta.mat','beta');
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+X1=[ones(size(ramp));ramp;restroom;walleye;salmon;panfish;shares]';
+theta1=theta';
+gamma=[-0.301805;-0.5415426;-0.7585151;0.9538099;-0.9765833;0.3835508;0.6997887];
+kappa=gamma(1);
+for a=1:2404
+    for b=1:100
+        S(a,b)=exp(kappa+gamma(2)*ramp(b)+gamma(3)*restroom(b)+gamma(4)*walleye(b)+gamma(5)*salmon(b)+gamma(6)*panfish(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    end
+end
+shares_iv=(((sum((S./sum(S,2))))/2404)*100)';
+%%2SLS regression is done by stata, below is stata code
+reg theta ramp restroom walleye salmon panfish shares
+ivregress 2SLS theta ramp restroom walleye salmon panfish (shares=shares_iv)
+predict e1, residual
+
+%Q4(a)PE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+walleye_after=X(3,:)*1.3;
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+boat_walleye_after=boat'*walleye_after;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+    Uij_bf=exp(repmat(theta,2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye);
+    Uij_af=exp(repmat(theta,2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye_after+repmat(0.3*beta(3)*walleye,2404,1));
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+CV=mean(CVi);
+
+%Q4aGE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares sigma0 error
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+walleye_after=X(3,:)*1.3;
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+boat_walleye_after=boat'*walleye_after;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+%find new equilibrium
+sigma0=shares;
+sigma1=ones(size(shares));
+k=1;
+error=norm(sigma1-sigma0);
+while error>1*10^(-13)
+    P=exp(repmat(beta(1)*ramp+beta(2)*restroom+beta(3)*walleye_after+beta(4)*salmon+beta(5)*panfish+beta(6)*sigma0+kasi',2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye_after);
+P1=P./sum(P,2);
+sigma=100*sum(P1)/2404;
+sigma1=0.1*sigma+0.9*sigma1;
+error=norm(sigma1-sigma0);
+sigma0=sigma1;
+k=k+1;
+end
+sigmaj=sigma1;
+ee=error;
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    Uij_af(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye_after(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*sigmaj(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye_after(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+CV=mean(CVi);
+
+%Q4bPE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+for b=[1:100]
+    if shares(b)>1.5     
+walleye_after(b)=walleye(b)*1.3;
+    else
+      walleye_after(b)=walleye(b);
+    end
+end
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+boat_walleye_after=boat'*walleye_after;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    Uij_af(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye_after(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye_after(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_affected=mean(CVi(B==1));
+CV_unaffected=mean(CVi(B==0));
+
+%Q4bGE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+
+for b=[1:100]
+    if shares(b)>1.5     
+walleye_after(b)=walleye(b)*1.3;
+    else
+      walleye_after(b)=walleye(b);
+    end
+end
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+boat_walleye_after=boat'*walleye_after;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+%find new equilibrium
+sigma0=shares;
+sigma1=ones(size(shares));
+k=1;
+error=norm(sigma1-sigma0);
+while error>1*10^(-13)
+   
+P=exp(repmat(beta(1)*ramp+beta(2)*restroom+beta(3)*walleye_after+beta(4)*salmon+beta(5)*panfish+beta(6)*sigma0+kasi',2404,1)+alpha(1)*Z+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye_after);
+P1=P./sum(P,2);
+sigma=100*sum(P1)/2404;
+sigma1=0.05*sigma+0.95*sigma1;
+error=norm(sigma1-sigma0);
+sigma0=sigma1;
+k=k+1;
+end
+sigmaj=sigma1;
+ee=error;
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    Uij_af(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye_after(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*sigmaj(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye_after(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_affected=mean(CVi(B==1));
+CV_unaffected=mean(CVi(B==0));
+
+%Q4cPE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye shares
+load('WI_sort_100.mat');
+load('PS2Q4cxafter.mat','X_after');
+load('PS2Q4cafter.mat','Z_after');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+ramp_after=X_after(:,1);
+restroom_after=X_after(:,2);
+walleye_after=X_after(:,3);
+salmon_after=X_after(:,4);
+panfish_after=X_after(:,5);
+kasi_after=X_after(:,7);
+shares_after=X_after(:,6);
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish_after=kid'*panfish_after';
+kid_restroom_after=kid'*restroom_after';
+boat_ramp_after=boat'*ramp_after';
+boat_walleye_after=boat'*walleye_after';
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+end
+end
+for a=[1:2404]
+for b=[1:82]
+    Uij_af(a,b)=exp(beta(1)*ramp_after(b)+beta(2)*restroom_after(b)+beta(3)*walleye_after(b)+beta(4)*salmon_after(b)+beta(5)*panfish_after(b)+beta(6)*shares_after(b)+kasi_after(b)+alpha(1)*Z_after(a,b)+alpha(2)*kid_panfish_after(a,b)+alpha(3)*kid_restroom_after(a,b)+alpha(4)*boat_ramp_after(a,b)+alpha(5)*boat_walleye_after(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_pick=mean(CVi(B==1));
+CV_notpick=mean(CVi(B==0));
+
+%Q4cGE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye shares
+load('WI_sort_100.mat');
+load('PS2Q4cxafter.mat','X_after');
+load('PS2Q4cafter.mat','Z_after');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+ramp_after=X_after(:,1);
+restroom_after=X_after(:,2);
+walleye_after=X_after(:,3);
+salmon_after=X_after(:,4);
+panfish_after=X_after(:,5);
+kasi_after=X_after(:,7);
+shares_after=X_after(:,6);
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish_after=kid'*panfish_after';
+kid_restroom_after=kid'*restroom_after';
+boat_ramp_after=boat'*ramp_after';
+boat_walleye_after=boat'*walleye_after';
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+%find new equilibrium
+sigma0=shares_after';
+sigma1=ones(size(shares_after'));
+k=1;
+error=norm(sigma1-sigma0);
+while error>1*10^(-13)&k<1000
+ P=exp(repmat(beta(1)*ramp_after'+beta(2)*restroom_after'+beta(3)*walleye_after'+beta(4)*salmon_after'+beta(5)*panfish_after'+beta(6)*sigma0+kasi_after',2404,1)+alpha(1)*Z_after+alpha(2)*kid_panfish_after+alpha(3)*kid_restroom_after+alpha(4)*boat_ramp_after+alpha(5)*boat_walleye_after);
+P1=P./sum(P,2);
+sigma=100*sum(P1)/2404;
+sigma1=0.1*sigma+0.9*sigma1;
+error=norm(sigma1-sigma0);
+sigma0=sigma1;
+k=k+1;
+end
+sigmaj=sigma1;
+ee=error;
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+end
+end
+for a=[1:2404]
+for b=[1:82]
+    Uij_af(a,b)=exp(beta(1)*ramp_after(b)+beta(2)*restroom_after(b)+beta(3)*walleye_after(b)+beta(4)*salmon_after(b)+beta(5)*panfish_after(b)+beta(6)*sigmaj(b)+kasi_after(b)+alpha(1)*Z_after(a,b)+alpha(2)*kid_panfish_after(a,b)+alpha(3)*kid_restroom_after(a,b)+alpha(4)*boat_ramp_after(a,b)+alpha(5)*boat_walleye_after(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_pick=mean(CVi(B==1));
+CV_notpick=mean(CVi(B==0));
+
+%Q4dPE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+for b=[1:100]
+    if shares(b)>1.5     
+Z_after(:,b)=Z(:,b)+10;
+    else
+      Z_after(:,b)=Z(:,b);
+    end
+end
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    Uij_af(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z_after(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_affected=mean(CVi(B==1));
+CV_unaffected=mean(CVi(B==0));
+
+%Q4dGE
+clear
+clear global
+global ramp restroom walleye salmon panfish Z D1 kid_panfish kid_restroom boat_ramp boat_walleye S1 shares
+load('WI_sort_100.mat');
+ramp=X(1,:);
+restroom=X(2,:);
+walleye=X(3,:);
+salmon=X(4,:);
+panfish=X(5,:);
+shares=X(6,:)*100;
+for b=[1:100]
+    if shares(b)>1.5     
+Z_after(:,b)=Z(:,b)+10;
+    else
+      Z_after(:,b)=Z(:,b);
+    end
+end
+boat=I(1,:);
+kid=I(2,:);
+oneone=I(3,:);
+for a=[1:2404]
+for b=[1:100]
+  if L(a)==b
+      D1(a,b)=1;
+  else
+      D1(a,b)=0;
+  end
+  rampfull(a,b)=ramp(b);
+  panfishfull(a,b)=panfish(b);
+  restroomfull(a,b)=restroom(b);
+  salmonfull(a,b)=salmon(b);
+  walleyefull(a,b)=walleye(b);
+end
+end
+D2=D1;
+kid_panfish=kid'*panfish;
+kid_restroom=kid'*restroom;
+boat_ramp=boat'*ramp;
+boat_walleye=boat'*walleye;
+load('PS2Q3i3alpha.mat','alpha');
+load('PS2Q3i3theta.mat','theta');
+load('PS2Q4kasi.mat','kasi');
+beta=[-0.380046;-0.49654;7.990534;19.85521;1.26169;-3.646634];
+%find new equilibrium
+sigma0=shares;
+sigma1=ones(size(shares));
+k=1;
+error=norm(sigma1-sigma0);
+while error>1*10^(-13)&k<1000
+    P=exp(repmat(beta(1)*ramp+beta(2)*restroom+beta(3)*walleye+beta(4)*salmon+beta(5)*panfish+beta(6)*sigma0+kasi',2404,1)+alpha(1)*Z_after+alpha(2)*kid_panfish+alpha(3)*kid_restroom+alpha(4)*boat_ramp+alpha(5)*boat_walleye);
+P1=P./sum(P,2);
+sigma=100*sum(P1)/2404;
+sigma1=0.1*sigma+0.9*sigma1;
+error=norm(sigma1-sigma0);
+sigma0=sigma1;
+k=k+1;
+end
+sigmaj=sigma1;
+ee=error;
+for a=[1:2404]
+for b=[1:100]
+    Uij_bf(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*shares(b)+kasi(b)+alpha(1)*Z(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+    Uij_af(a,b)=exp(beta(1)*ramp(b)+beta(2)*restroom(b)+beta(3)*walleye(b)+beta(4)*salmon(b)+beta(5)*panfish(b)+beta(6)*sigmaj(b)+kasi(b)+alpha(1)*Z_after(a,b)+alpha(2)*kid_panfish(a,b)+alpha(3)*kid_restroom(a,b)+alpha(4)*boat_ramp(a,b)+alpha(5)*boat_walleye(a,b));
+end
+end
+Ui_bf=log(sum(Uij_bf,2));
+Ui_af=log(sum(Uij_af,2));
+CVi=(Ui_af-Ui_bf)/alpha(1);
+id=X(6,:)>0.015;
+A=find(id==1);
+B=ismember(L,A);
+CV_affected=mean(CVi(B==1));
+CV_unaffected=mean(CVi(B==0));
