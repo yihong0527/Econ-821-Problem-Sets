@@ -1,0 +1,306 @@
+%Q1
+%LA
+[House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale]=textread('la_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+la_data=[House Price County YearBuilt Square Bathrooms Bedrooms TotalRooms Stories Violent Property YearSale];
+T=table(House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale);
+G1=groupsummary(T,"County","mean");
+G2=groupsummary(T,"County","var");
+%SF
+clear
+[House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale]=textread('sf_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+sf_data=[House Price County YearBuilt Square Bathrooms Bedrooms TotalRooms Stories Violent Property YearSale];
+T=table(House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale);
+G1=groupsummary(T,"County","mean");
+G2=groupsummary(T,"County","var");
+
+%Q2
+%LA
+clear
+[House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale]=textread('la_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+la_data=[House Price County YearBuilt Square Bathrooms Bedrooms TotalRooms Stories Violent Property YearSale];
+Property2=Property.^2;
+YearBuilt2=YearBuilt.^2;
+Square2=Square.^2;
+TotalRooms2=TotalRooms.^2;
+Violent2=Violent.^2;
+CTY=categorical(County);
+D1=dummyvar(CTY);
+YS=categorical(YearSale);
+D2=dummyvar(YS);
+D1(:,1)=[];
+D1(:,4)=[];
+D2(:,7)=[];
+X=[ones(size(House)),YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,Property2,YearBuilt2,TotalRooms2,Violent2,Square2,D1,D2];
+Y=[Price];
+betala=inv(X'*X)*X'*Y;
+D3=[X,Y];
+BC=bootstrp(500,@(D3)inv(D3(:,1:32)'*D3(:,1:32))*D3(:,1:32)'*D3(:,33),D3);
+save('savebetala.mat','betala');
+save('saveBCla.mat','BC');
+S=std(BC);
+%SF
+clear
+[House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale]=textread('sf_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+sf_data=[House Price County YearBuilt Square Bathrooms Bedrooms TotalRooms Stories Violent Property YearSale];
+Property2=Property.^2;
+YearBuilt2=YearBuilt.^2;
+Square2=Square.^2;
+TotalRooms2=TotalRooms.^2;
+Violent2=Violent.^2;
+CTY=categorical(County);
+D1=dummyvar(CTY);
+YS=categorical(YearSale);
+D2=dummyvar(YS);
+D1(:,1)=[];
+D2(:,7)=[];
+X=[ones(size(House)),YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,Property2,YearBuilt2,TotalRooms2,Violent2,Square2,D1,D2];
+Y=[Price];
+betasf=inv(X'*X)*X'*Y;
+D3=[X,Y];
+BC=bootstrp(500,@(D3)inv(D3(:,1:33)'*D3(:,1:33))*D3(:,1:33)'*D3(:,34),D3);
+save('savebetasf.mat','betasf');
+save('saveBCsf.mat','BC');
+S=std(BC);
+
+%Q3
+clear
+[Buyer,Price,Violent,Property,Race,Income,LA_Indicator]=textread("buyer_data_sf_la.txt",'%n%n%n%n%n%n%n');
+RCE=categorical(Race);
+DR=dummyvar(RCE);
+DR(:,4)=[];
+VC=[];
+VG=[];
+PGV=[];
+X=[ones(size(Price)),Violent,Property,Race,Income,LA_Indicator];
+M1=load('savebetala.mat');
+M2=load('savebetasf.mat');
+betala=cell2mat(struct2cell(M1));
+betasf=cell2mat(struct2cell(M2));
+PGVPEla=betala(8)+2*betala(13)*Violent(LA_Indicator==1);
+PGVPEsf=betasf(8)+2*betasf(13)*Violent(LA_Indicator==0);
+PGVPE=[PGVPEsf;PGVPEla];
+SXPE=[Violent,DR,Income];
+CPE=fitlm(SXPE,PGVPE);
+M3=load('saveBCla.mat');
+M4=load('saveBCsf.mat');
+BCla=cell2mat(struct2cell(M3));
+BCsf=cell2mat(struct2cell(M4));
+for j=[1:500];
+    PGVla=BCla(j,8)+2*BCla(j,13)*Violent(LA_Indicator==1);
+    PGVsf=BCsf(j,8)+2*BCsf(j,13)*Violent(LA_Indicator==0);
+    PGV=[PGV,[PGVsf;PGVla]];
+end
+PGVMAT=PGV;
+SX=[ones(size(Price)),Violent,DR,Income];
+for k=[1:500];
+    RM=[SX,PGVMAT(:,k)];
+    VB=bootstrp(1,@(RM)inv(RM(:,1:6)'*RM(:,1:6))*RM(:,1:6)'*RM(:,7),RM);
+    VC=[VC;VB];
+end
+S=std(VC);
+save('savestdQ3.mat','S');
+save('savecoefQ3.mat','VC');
+
+%Q4
+clear
+[House,Price,County,YearBuilt,Square,Bathrooms,Bedrooms,TotalRooms,Stories,Violent,Property,YearSale]=textread('la_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+la_data=[House Price County YearBuilt Square Bathrooms Bedrooms TotalRooms Stories Violent Property YearSale];
+S=std(Violent);
+PL1=[];
+for Gamma=[1:2000];
+    h=1;
+    beta0=[1.0e+05 *3.9009,-0.0020];
+    weights=(1/(h*S))*(1/(sqrt(2*pi)))*exp(-(1/2)*((Violent-Gamma)/(h*S)).^2);
+  modelfun=@(beta,Violent) (beta(1)+beta(2)*Violent);
+  beta=nlinfit(Violent,Price,modelfun,beta0,"weights",weights);
+    PL1=[PL1;beta];
+end
+PL3=[];
+for Gamma=[1:2000];
+    h=3;
+    beta0=[1.0e+05 *3.9009,-0.0020];
+    weights=(1/(h*S))*(1/(sqrt(2*pi)))*exp(-(1/2)*((Violent-Gamma)/(h*S)).^2);
+  modelfun=@(beta,Violent) (beta(1)+beta(2)*Violent);
+  beta=nlinfit(Violent,Price,modelfun,beta0,"weights",weights);
+    PL3=[PL3;beta];
+end
+PL10=[];
+for Gamma=[1:2000];
+    h=10;
+    beta0=[1.0e+05 *3.9009,-0.0020];
+    weights=(1/(h*S))*(1/(sqrt(2*pi)))*exp(-(1/2)*((Violent-Gamma)/(h*S)).^2);
+  modelfun=@(beta,Violent) (beta(1)+beta(2)*Violent);
+  beta=nlinfit(Violent,Price,modelfun,beta0,"weights",weights);
+    PL10=[PL10;beta];
+end
+PL1000=[];
+for Gamma=[1:2000];
+    h=1000;
+    beta0=[1.0e+05 *3.9009,-0.0020];
+    weights=(1/(h*S))*(1/(sqrt(2*pi)))*exp(-(1/2)*((Violent-Gamma)/(h*S)).^2);
+  modelfun=@(beta,Violent) (beta(1)+beta(2)*Violent);
+  beta=nlinfit(Violent,Price,modelfun,beta0,"weights",weights);
+    PL1000=[PL1000;beta];
+end
+Gamma=[1:2000];
+plot(Gamma,PL1(:,2),Gamma,PL3(:,2),Gamma,PL10(:,2),Gamma,PL1000(:,2));
+save('savePL1','PL1');    
+
+%Q5
+clear
+[Buyer,Price,Violent,Property,Race,Income,Vint]=textread('buyer_data_la_modified.txt','%n%n%n%n%n%n%n');
+M1=load('savEPL1.mat');
+HP=cell2mat(struct2cell(M1));
+MWTP=[];
+for a=[1:55498];
+    C=Vint(a);
+    B=[HP(C,2)];
+    MWTP=[MWTP;B];
+end
+RCE=categorical(Race);
+RD=dummyvar(RCE);
+RD(:,4)=[];
+X=[Income,RD];
+CPE = fitlm(X,MWTP);
+
+%Q6
+%Point Estimate
+clear
+global PGPE PG2PE Asian Black Hisp X1PE alpha_20 Violent
+[Housela,Pricela,Countyla,YearBuiltla,Squarela,Bathroomsla,Bedroomsla,TotalRoomsla,Storiesla,Violentla,Propertyla,YearSalela]=textread('la_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+CTYla=categorical(Countyla);
+D1la=dummyvar(CTYla);
+YSla=categorical(YearSalela);
+D2la=dummyvar(YSla);
+D1la(:,1)=[];
+D1la(:,4)=[];
+D2la(:,7)=[];
+Xla=[ones(size(Housela)),YearBuiltla,Squarela,Bathroomsla,Bedroomsla,TotalRoomsla,Storiesla,Violentla,Violentla.^2,Violentla.^3,Violentla.^4,Violentla.^5,Violentla.^6,Propertyla,Propertyla.^2,YearBuiltla.^2,TotalRoomsla.^2,Squarela.^2,D1la,D2la];
+Yla=[Pricela];
+betaPEla=inv(Xla'*Xla)*Xla'*Yla;
+[Housesf,Pricesf,Countysf,YearBuiltsf,Squaresf,Bathroomssf,Bedroomssf,TotalRoomssf,Storiessf,Violentsf,Propertysf,YearSalesf]=textread('sf_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+CTYsf=categorical(Countysf);
+D1sf=dummyvar(CTYsf);
+YSsf=categorical(YearSalesf);
+D2sf=dummyvar(YSsf);
+D1sf(:,1)=[];
+D2sf(:,7)=[];
+Xsf=[ones(size(Housesf)),YearBuiltsf,Squaresf,Bathroomssf,Bedroomssf,TotalRoomssf,Storiessf,Violentsf,Violentsf.^2,Violentsf.^3,Violentsf.^4,Violentsf.^5,Violentsf.^6,Propertysf,Propertysf.^2,YearBuiltsf.^2,TotalRoomssf.^2,Squaresf.^2,D1sf,D2sf];
+Ysf=[Pricesf];
+betaPEsf=inv(Xsf'*Xsf)*Xsf'*Ysf;
+[Buyer,Price,Violent,Property,Race,Income,LA_Indicator]=textread("buyer_data_sf_la.txt",'%n%n%n%n%n%n%n');
+RCE=categorical(Race);
+RD=dummyvar(RCE);
+RD(:,4)=[];
+PGPEla=betaPEla(8)+2*betaPEla(9)*Violent(LA_Indicator==1)+3*betaPEla(10)*Violent(LA_Indicator==1).^2+4*betaPEla(11)*Violent(LA_Indicator==1).^3+5*betaPEla(12)*Violent(LA_Indicator==1).^4+6*betaPEla(13)*Violent(LA_Indicator==1).^5;
+PGPEsf=betaPEsf(8)+2*betaPEsf(9)*Violent(LA_Indicator==0)+3*betaPEsf(10)*Violent(LA_Indicator==0).^2+4*betaPEsf(11)*Violent(LA_Indicator==0).^3+5*betaPEsf(12)*Violent(LA_Indicator==0).^4+6*betaPEsf(13)*Violent(LA_Indicator==0).^5;
+PGPE=[PGPEsf;PGPEla];
+PG2PEla=2*betaPEla(9)+6*betaPEla(10)*Violent(LA_Indicator==1)+12*betaPEla(11)*Violent(LA_Indicator==1).^2+20*betaPEla(12)*Violent(LA_Indicator==1).^3+30*betaPEla(13)*Violent(LA_Indicator==1).^4;
+PG2PEsf=2*betaPEsf(9)+6*betaPEsf(10)*Violent(LA_Indicator==0)+12*betaPEsf(11)*Violent(LA_Indicator==0).^2+20*betaPEsf(12)*Violent(LA_Indicator==0).^3+30*betaPEsf(13)*Violent(LA_Indicator==0).^4;
+PG2PE=[PG2PEsf;PG2PEla];
+XPE=[ones(size(Violent)),Violent,Income,RD];
+X1PE=[ones(size(Violent)),Income,RD];
+[betaPE0,~,rPE0]=regress(PGPE,XPE);
+sigmaPE0=sqrt(sum(rPE0.^2)/659548);
+alphaPE0=betaPE0;
+alpha_20=-1;
+Asian=RD(:,1);
+Black=RD(:,2);
+Hisp=RD(:,3);
+options = optimset('MaxFunEvals',100000,'MaxIter',50000,'PlotFcns',@optimplotfval);
+[alpha_2PE,L1PE]=fminsearch(@f1,alpha_20,options);
+PalphaPE=PGPE-alpha_2PE*Violent;
+beta_13PE=regress(PalphaPE,X1PE);
+alpha_13PE=beta_13PE;
+%MLE function
+function L1=f1(alpha_2)
+global PGPE PG2PE Asian Black Hisp X1PE Violent
+L1=0;
+   Palpha=PGPE-alpha_2*Violent;
+   [beta_13,~,rv]=regress(Palpha,X1PE);
+   alpha_13=beta_13;
+   sigmav=sqrt(sum(rv.^2)/659548);
+   v=PGPE-X1PE*alpha_13-alpha_2*Violent;
+   v0=ones(size(Asian));
+   v1=v0*log(1/(sqrt(2*pi)*sigmav));
+   v2=(v.^2)*(1/(2*sigmav.^2));
+   v3=log(abs(PG2PE-v0*alpha_2));
+   l=v1+v2+v3;
+A=find(l==-inf);
+l(A)=[];
+L1=-sum(l);
+end
+%Bootstrap
+clear
+global PG PG2 Asian Black Hisp X1 alpha_20 Violent j
+[Housela,Pricela,Countyla,YearBuiltla,Squarela,Bathroomsla,Bedroomsla,TotalRoomsla,Storiesla,Violentla,Propertyla,YearSalela]=textread('la_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+CTYla=categorical(Countyla);
+D1la=dummyvar(CTYla);
+YSla=categorical(YearSalela);
+D2la=dummyvar(YSla);
+D1la(:,1)=[];
+D1la(:,4)=[];
+D2la(:,7)=[];
+Xla=[ones(size(Housela)),YearBuiltla,Squarela,Bathroomsla,Bedroomsla,TotalRoomsla,Storiesla,Violentla,Violentla.^2,Violentla.^3,Violentla.^4,Violentla.^5,Violentla.^6,Propertyla,Propertyla.^2,YearBuiltla.^2,TotalRoomsla.^2,Squarela.^2,D1la,D2la];
+Yla=[Pricela];
+Samplela=[Xla,Yla];
+betala0=bootstrp(500,@(Samplela)inv(Samplela(:,1:36)'*Samplela(:,1:36))*Samplela(:,1:36)'*Samplela(:,37),Samplela);
+betala=betala0;
+[Housesf,Pricesf,Countysf,YearBuiltsf,Squaresf,Bathroomssf,Bedroomssf,TotalRoomssf,Storiessf,Violentsf,Propertysf,YearSalesf]=textread('sf_data.txt','%n%n%n%n%n%n%n%n%n%n%n%n');
+CTYsf=categorical(Countysf);
+D1sf=dummyvar(CTYsf);
+YSsf=categorical(YearSalesf);
+D2sf=dummyvar(YSsf);
+D1sf(:,1)=[];
+D2sf(:,7)=[];
+Xsf=[ones(size(Housesf)),YearBuiltsf,Squaresf,Bathroomssf,Bedroomssf,TotalRoomssf,Storiessf,Violentsf,Violentsf.^2,Violentsf.^3,Violentsf.^4,Violentsf.^5,Violentsf.^6,Propertysf,Propertysf.^2,YearBuiltsf.^2,TotalRoomssf.^2,Squaresf.^2,D1sf,D2sf];
+Ysf=[Pricesf];
+Samplesf=[Xsf,Ysf];
+betasf0=bootstrp(500,@(Samplesf)inv(Samplesf(:,1:37)'*Samplesf(:,1:37))*Samplesf(:,1:37)'*Samplesf(:,38),Samplesf);
+betasf=betasf0;
+[Buyer,Price,Violent,Property,Race,Income,LA_Indicator]=textread("buyer_data_sf_la.txt",'%n%n%n%n%n%n%n');
+RCE=categorical(Race);
+RD=dummyvar(RCE);
+RD(:,4)=[];
+PGsf=ones([216880,1])*betasf(:,8)'+2*Violent(1:216880)*betasf(:,9)'+3*Violent(1:216880).^2*betasf(:,10)'+4*Violent(1:216880).^3*betasf(:,11)'+5*Violent(1:216880).^4*betasf(:,12)'+6*Violent(1:216880).^5*betasf(:,13)';
+PGla=ones([442668,1])*betala(:,8)'+2*Violent(216881:659548)*betala(:,9)'+3*Violent(216881:659548).^2*betala(:,10)'+4*Violent(216881:659548).^3*betala(:,11)'+5*Violent(216881:659548).^4*betala(:,12)'+6*Violent(216881:659548).^5*betala(:,13)';
+PG=[PGsf;PGla];
+PG2sf=2*ones([216880,1])*betasf(:,9)'+6*Violent(1:216880)*betasf(:,10)'+12*Violent(1:216880).^2*betasf(:,11)'+20*Violent(1:216880).^3*betasf(:,12)'+30*Violent(1:216880).^4*betasf(:,13)';
+PG2la=2*ones([442668,1])*betala(:,9)'+6*Violent(216881:659548)*betala(:,10)'+12*Violent(216881:659548).^2*betala(:,11)'+20*Violent(216881:659548).^3*betala(:,12)'+30*Violent(216881:659548).^4*betala(:,13)';
+PG2=[PG2sf;PG2la];
+X=[ones(size(Violent)),Violent,Income,RD];
+X1=[ones(size(Violent)),Income,RD];
+Asian=RD(:,1);
+Black=RD(:,2);
+Hisp=RD(:,3);
+Coeff=[];
+for j=[1:500]
+alpha_20=-1;
+options = optimset('MaxFunEvals',100000,'MaxIter',50000,'PlotFcns',@optimplotfval);
+[alpha_2,L1]=fminsearch(@f1,alpha_20,options);
+Palpha=PG(:,j)-alpha_2*Violent;
+beta_13=regress(Palpha,X1);
+alpha_13=beta_13;
+Coeff=[Coeff;[alpha_2,alpha_13',L1]];
+end
+S=std(Coeff);
+save('saveCoeffQ6.mat','Coeff');
+save('saveSQ6.mat','S');
+%MLE function
+function L1=f1(alpha_2)
+global PG PG2 Asian Black Hisp X1 Violent j
+L1=0;
+   Palpha=PG(:,j)-alpha_2*Violent;
+   [beta_13,~,rv]=regress(Palpha,X1);
+   alpha_13=beta_13;
+   sigmav=sqrt(sum(rv.^2)/659548);
+   v=PG(:,j)-X1*alpha_13-alpha_2*Violent;
+   v0=ones(size(Asian));
+   v1=v0*log(1/(sqrt(2*pi)*sigmav));
+   v2=(v.^2)*(1/(2*sigmav.^2));
+   v3=log(abs(PG2(:,j)-v0*alpha_2));
+   l=v1+v2+v3;
+A=find(l==-inf);
+l(A)=[];
+L1=-sum(l);
+end
